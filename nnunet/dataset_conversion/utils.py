@@ -1,4 +1,3 @@
-
 #    Copyright 2020 Division of Medical Image Computing, German Cancer Research Center (DKFZ), Heidelberg, Germany
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,7 +24,8 @@ def get_identifiers_from_splitted_files(folder: str):
 
 
 def generate_dataset_json(output_file: str, imagesTr_dir: str, imagesTs_dir: str, modalities: Tuple,
-                          labels: dict, dataset_name: str, sort_keys=True, license: str = "hands off!", dataset_description: str = "",
+                          labels: dict, dataset_name: str, sort_keys=True, license: str = "hands off!",
+                          dataset_description: str = "",
                           dataset_reference="", dataset_release='0.0'):
     """
     :param output_file: This needs to be the full path to the dataset.json you intend to write, so
@@ -74,3 +74,21 @@ def generate_dataset_json(output_file: str, imagesTr_dir: str, imagesTs_dir: str
         print("WARNING: output file name is not dataset.json! This may be intentional or not. You decide. "
               "Proceeding anyways...")
     save_json(json_dict, os.path.join(output_file), sort_keys=sort_keys)
+
+
+if __name__ == '__main__':
+    generate_dataset_json(output_file='G:\\Behrooz\\projects\\nnUNet\\nnunet_folders\\'
+                                      'nnUNet_raw_data_base\\nnUNet_raw_data\\Task501_250CTs\\dataset.json',
+                          imagesTr_dir='G:\\Behrooz\\projects\\nnUNet\\nnunet_folders\\'
+                                       'nnUNet_raw_data_base\\nnUNet_raw_data\\Task501_250CTs\\imagesTr',
+                          imagesTs_dir='G:\\Behrooz\\projects\\nnUNet\\nnunet_folders\\'
+                                       'nnUNet_raw_data_base\\nnUNet_raw_data\\Task501_250CTs\\imagesTs',
+                          modalities=('CT',),
+                          labels={0: 'background', 1: 'kidney'},
+                          dataset_name='1000CTs',
+                          sort_keys=True,
+                          license=" CC-BY-SA 4.0",
+                          dataset_description="Data collected from https://github.com/JunMa11/AbdomenCT-1K. "
+                                              "1050 Cts with seg are available and 40 of those are placed in "
+                                              "Test section (ImagesTs & labelsTs) rest are for 5 fold training")
+

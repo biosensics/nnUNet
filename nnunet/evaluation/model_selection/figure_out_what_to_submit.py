@@ -51,9 +51,8 @@ def main():
                                            "already. This script will summarize the results of the five folds of all "
                                            "models in one json each for easy interpretability")
 
-    parser.add_argument("-m", '--models', nargs="+", required=False, default=['2d', '3d_lowres', '3d_fullres',
-                                                                              '3d_cascade_fullres'])
-    parser.add_argument("-t", '--task_ids', nargs="+", required=True)
+    parser.add_argument("-m", '--models', nargs="+", required=False, default=['3d_fullres'])
+    parser.add_argument("-t", '--task_ids', nargs="+", required=False, default=[401],)
 
     parser.add_argument("-tr", type=str, required=False, default=default_trainer,
                         help="nnUNetTrainer class. Default: %s" % default_trainer)

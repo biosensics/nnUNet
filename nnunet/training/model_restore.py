@@ -23,7 +23,7 @@ from nnunet.training.network_training.nnUNetTrainer import nnUNetTrainer
 def recursive_find_python_class(folder, trainer_name, current_module):
     tr = None
     for importer, modname, ispkg in pkgutil.iter_modules(folder):
-        # print(modname, ispkg)
+        print(modname, ispkg)
         if not ispkg:
             m = importlib.import_module(current_module + "." + modname)
             if hasattr(m, trainer_name):

@@ -98,6 +98,18 @@ def verify_dataset_integrity(folder):
     :param folder:
     :return:
     """
+
+    def read_sitk_nifti_proof(nifti_file_adrs):
+        try:
+            file_itk = sitk.ReadImage(nifti_file_adrs)
+        except RuntimeError:
+            file_nifti = nib.load(nifti_file_adrs)
+            file_nifti.set_sform(file_nifti.get_sform())
+            file_nifti.set_qform(file_nifti.get_qform())
+            nib.save(file_nifti, nifti_file_adrs)
+            file_itk = sitk.ReadImage(nifti_file_adrs)
+        return file_itk
+
     assert isfile(join(folder, "dataset.json")), "There needs to be a dataset.json file in folder, folder=%s" % folder
     assert isdir(join(folder, "imagesTr")), "There needs to be a imagesTr subfolder in folder, folder=%s" % folder
     assert isdir(join(folder, "labelsTr")), "There needs to be a labelsTr subfolder in folder, folder=%s" % folder
@@ -133,14 +145,13 @@ def verify_dataset_integrity(folder):
             c, expected_image_files)
 
         # verify that all modalities and the label have the same shape and geometry.
-        label_itk = sitk.ReadImage(expected_label_file)
-
+        label_itk = read_sitk_nifti_proof(expected_label_file)
         nans_in_seg = np.any(np.isnan(sitk.GetArrayFromImage(label_itk)))
         has_nan = has_nan | nans_in_seg
         if nans_in_seg:
             print("There are NAN values in segmentation %s" % expected_label_file)
 
-        images_itk = [sitk.ReadImage(i) for i in expected_image_files]
+        images_itk = [read_sitk_nifti_proof(i) for i in expected_image_files]
         for i, img in enumerate(images_itk):
             nans_in_image = np.any(np.isnan(sitk.GetArrayFromImage(img)))
             has_nan = has_nan | nans_in_image

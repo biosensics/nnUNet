@@ -37,12 +37,12 @@ def split_4d(input_folder, num_processes=default_num_threads, overwrite_task_out
     while input_folder.endswith("/"):
         input_folder = input_folder[:-1]
 
-    full_task_name = input_folder.split("/")[-1]
+    full_task_name = input_folder.split('\\')[-1]
 
     assert full_task_name.startswith("Task"), "The input folder must point to a folder that starts with TaskXX_"
 
     first_underscore = full_task_name.find("_")
-    assert first_underscore == 6, "Input folder start with TaskXX with XX being a 3-digit id: 00, 01, 02 etc"
+    assert first_underscore == 6, "Input folder start with TaskXX with XX being a 2-digit id: 00, 01, 02 etc"
 
     input_task_id = int(full_task_name[4:6])
     if overwrite_task_output_id is None:
@@ -72,6 +72,7 @@ def split_4d(input_folder, num_processes=default_num_threads, overwrite_task_out
 
     shutil.copytree(join(input_folder, "labelsTr"), join(output_folder, "labelsTr"))
 
+    # split_4d_nifti(files[0], output_dirs[0])
     p = Pool(num_processes)
     p.starmap(split_4d_nifti, zip(files, output_dirs))
     p.close()
@@ -89,10 +90,12 @@ def create_lists_from_splitted_dataset(base_folder_splitted):
     num_modalities = len(d['modality'].keys())
     for tr in training_files:
         cur_pat = []
+        tr['image'] = tr['image'].replace('/', '\\')
+        tr['label'] = tr['label'].replace('/', '\\')
         for mod in range(num_modalities):
-            cur_pat.append(join(base_folder_splitted, "imagesTr", tr['image'].split("/")[-1][:-7] +
+            cur_pat.append(join(base_folder_splitted, "imagesTr", tr['image'].split('\\')[-1][:-7] +
                                 "_%04.0d.nii.gz" % mod))
-        cur_pat.append(join(base_folder_splitted, "labelsTr", tr['label'].split("/")[-1]))
+        cur_pat.append(join(base_folder_splitted, "labelsTr", tr['label'].split('\\')[-1]))
         lists.append(cur_pat)
     return lists, {int(i): d['modality'][str(i)] for i in d['modality'].keys()}
 
@@ -171,11 +174,11 @@ def plan_and_preprocess(task_string, processes_lowres=default_num_threads, proce
         # if there is more than one my_data_identifier (different brnaches) then this code will run for all of them if
         # they start with the same string. not problematic, but not pretty
         stages = [i for i in subdirs(preprocessing_output_dir_this_task_train, join=True, sort=True)
-                  if i.split("/")[-1].find("stage") != -1]
+                  if i.split('\\')[-1].find("stage") != -1]
         for s in stages:
-            print(s.split("/")[-1])
+            print(s.split('\\')[-1])
             list_of_npz_files = subfiles(s, True, None, ".npz", True)
-            list_of_pkl_files = [i[:-4]+".pkl" for i in list_of_npz_files]
+            list_of_pkl_files = [i[:-4] + ".pkl" for i in list_of_npz_files]
             all_classes = []
             for pk in list_of_pkl_files:
                 with open(pk, 'rb') as f:
@@ -198,7 +201,7 @@ def add_classes_in_slice_info(args):
     seg_map = np.load(npz_file)['data'][-1]
     with open(pkl_file, 'rb') as f:
         props = pickle.load(f)
-    #if props.get('classes_in_slice_per_axis') is not None:
+    # if props.get('classes_in_slice_per_axis') is not None:
     print(pkl_file)
     # this will be a dict of dict where the first dict encodes the axis along which a slice is extracted in its keys.
     # The second dict (value of first dict) will have all classes as key and as values a list of all slice ids that

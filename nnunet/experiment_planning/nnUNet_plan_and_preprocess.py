@@ -28,15 +28,16 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-t", "--task_ids", nargs="+", help="List of integers belonging to the task ids you wish to run"
-                                                            " experiment planning and preprocessing for. Each of these "
-                                                            "ids must, have a matching folder 'TaskXXX_' in the raw "
-                                                            "data folder")
+    parser.add_argument("-t", "--task_ids", nargs="+", default=[501],
+                        help="List of integers belonging to the task ids you wish to run"
+                             " experiment planning and preprocessing for. Each of these "
+                             "ids must, have a matching folder 'TaskXXX_' in the raw "
+                             "data folder")
     parser.add_argument("-pl3d", "--planner3d", type=str, default="ExperimentPlanner3D_v21",
                         help="Name of the ExperimentPlanner class for the full resolution 3D U-Net and U-Net cascade. "
                              "Default is ExperimentPlanner3D_v21. Can be 'None', in which case these U-Nets will not be "
                              "configured")
-    parser.add_argument("-pl2d", "--planner2d", type=str, default="ExperimentPlanner2D_v21",
+    parser.add_argument("-pl2d", "--planner2d", type=str, default=None,
                         help="Name of the ExperimentPlanner class for the 2D U-Net. Default is ExperimentPlanner2D_v21. "
                              "Can be 'None', in which case this U-Net will not be configured")
     parser.add_argument("-no_pp", action="store_true",
@@ -46,7 +47,7 @@ def main():
                         help="Number of processes used for preprocessing the low resolution data for the 3D low "
                              "resolution U-Net. This can be larger than -tf. Don't overdo it or you will run out of "
                              "RAM")
-    parser.add_argument("-tf", type=int, required=False, default=8,
+    parser.add_argument("-tf", type=int, required=False, default=16,
                         help="Number of processes used for preprocessing the full resolution data of the 2D U-Net and "
                              "3D U-Net. Don't overdo it or you will run out of RAM")
     parser.add_argument("--verify_dataset_integrity", required=False, default=False, action="store_true",
@@ -105,13 +106,13 @@ def main():
             verify_dataset_integrity(join(nnUNet_raw_data, task_name))
 
         crop(task_name, False, tf)
-
         tasks.append(task_name)
 
     search_in = join(nnunet.__path__[0], "experiment_planning")
 
     if planner_name3d is not None:
-        planner_3d = recursive_find_python_class([search_in], planner_name3d, current_module="nnunet.experiment_planning")
+        planner_3d = recursive_find_python_class([search_in], planner_name3d,
+                                                 current_module="nnunet.experiment_planning")
         if planner_3d is None:
             raise RuntimeError("Could not find the Planner class %s. Make sure it is located somewhere in "
                                "nnunet.experiment_planning" % planner_name3d)
@@ -119,7 +120,8 @@ def main():
         planner_3d = None
 
     if planner_name2d is not None:
-        planner_2d = recursive_find_python_class([search_in], planner_name2d, current_module="nnunet.experiment_planning")
+        planner_2d = recursive_find_python_class([search_in], planner_name2d,
+                                                 current_module="nnunet.experiment_planning")
         if planner_2d is None:
             raise RuntimeError("Could not find the Planner class %s. Make sure it is located somewhere in "
                                "nnunet.experiment_planning" % planner_name2d)
@@ -130,16 +132,17 @@ def main():
         print("\n\n\n", t)
         cropped_out_dir = os.path.join(nnUNet_cropped_data, t)
         preprocessing_output_dir_this_task = os.path.join(preprocessing_output_dir, t)
-        #splitted_4d_output_dir_task = os.path.join(nnUNet_raw_data, t)
-        #lists, modalities = create_lists_from_splitted_dataset(splitted_4d_output_dir_task)
+        # splitted_4d_output_dir_task = os.path.join(nnUNet_raw_data, t)
+        # lists, modalities = create_lists_from_splitted_dataset(splitted_4d_output_dir_task)
 
         # we need to figure out if we need the intensity propoerties. We collect them only if one of the modalities is CT
         dataset_json = load_json(join(cropped_out_dir, 'dataset.json'))
         modalities = list(dataset_json["modality"].values())
         collect_intensityproperties = True if (("CT" in modalities) or ("ct" in modalities)) else False
-        dataset_analyzer = DatasetAnalyzer(cropped_out_dir, overwrite=False, num_processes=tf)  # this class creates the fingerprint
-        _ = dataset_analyzer.analyze_dataset(collect_intensityproperties)  # this will write output files that will be used by the ExperimentPlanner
-
+        dataset_analyzer = DatasetAnalyzer(cropped_out_dir, overwrite=False,
+                                           num_processes=tf)  # this class creates the fingerprint
+        _ = dataset_analyzer.analyze_dataset(
+            collect_intensityproperties)  # this will write output files that will be used by the ExperimentPlanner
 
         maybe_mkdir_p(preprocessing_output_dir_this_task)
         shutil.copy(join(cropped_out_dir, "dataset_properties.pkl"), preprocessing_output_dir_this_task)
@@ -168,4 +171,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
