@@ -74,6 +74,7 @@ def preprocess_save_to_queue(preprocess_fn, q, list_of_lists, output_files, segs
                     "Saving output temporarily to disk")
                 np.save(output_file[:-7] + ".npy", d)
                 d = output_file[:-7] + ".npy"
+            return (output_file, (d, dct))
             q.put((output_file, (d, dct)))
         except KeyboardInterrupt:
             raise KeyboardInterrupt
@@ -94,38 +95,41 @@ def preprocess_multithreaded(trainer, list_of_lists, output_files, num_processes
     if segs_from_prev_stage is None:
         segs_from_prev_stage = [None] * len(list_of_lists)
 
-    num_processes = min(len(list_of_lists), num_processes)
-
     classes = list(range(1, trainer.num_classes))
     assert isinstance(trainer, nnUNetTrainer)
     q = Queue(1)
-    processes = []
-    for i in range(num_processes):
-        pr = Process(target=preprocess_save_to_queue, args=(trainer.preprocess_patient, q,
-                                                            list_of_lists[i::num_processes],
-                                                            output_files[i::num_processes],
-                                                            segs_from_prev_stage[i::num_processes],
-                                                            classes, trainer.plans['transpose_forward']))
-        pr.start()
-        processes.append(pr)
+    preprocess_save_to_queue(trainer.preprocess_patient, q, list_of_lists,
+                             output_files, segs_from_prev_stage, classes,
+                             trainer.plans['transpose_forward'])
 
-    try:
-        end_ctr = 0
-        while end_ctr != num_processes:
-            item = q.get()
-            if item == "end":
-                end_ctr += 1
-                continue
-            else:
-                yield item
-
-    finally:
-        for p in processes:
-            if p.is_alive():
-                p.terminate()  # this should not happen but better safe than sorry right
-            p.join()
-
-        q.close()
+    # num_processes = min(len(list_of_lists), num_processes)
+    # processes = []
+    # for i in range(num_processes):
+    #     pr = Process(target=preprocess_save_to_queue, args=(trainer.preprocess_patient, q,
+    #                                                         list_of_lists[i::num_processes],
+    #                                                         output_files[i::num_processes],
+    #                                                         segs_from_prev_stage[i::num_processes],
+    #                                                         classes, trainer.plans['transpose_forward']))
+    #     pr.start()
+    #     processes.append(pr)
+    #
+    # try:
+    #     end_ctr = 0
+    #     while end_ctr != num_processes:
+    #         item = q.get()
+    #         if item == "end":
+    #             end_ctr += 1
+    #             continue
+    #         else:
+    #             yield item
+    #
+    # finally:
+    #     for p in processes:
+    #         if p.is_alive():
+    #             p.terminate()  # this should not happen but better safe than sorry right
+    #         p.join()
+    #
+    #     q.close()
 
 
 def predict_cases(model, list_of_lists, output_filenames, folds, save_npz, num_threads_preprocessing,
@@ -168,7 +172,8 @@ def predict_cases(model, list_of_lists, output_filenames, folds, save_npz, num_t
     if not overwrite_existing:
         print("number of cases:", len(list_of_lists))
         # if save_npz=True then we should also check for missing npz files
-        not_done_idx = [i for i, j in enumerate(cleaned_output_files) if (not isfile(j)) or (save_npz and not isfile(j[:-7] + '.npz'))]
+        not_done_idx = [i for i, j in enumerate(cleaned_output_files) if
+                        (not isfile(j)) or (save_npz and not isfile(j[:-7] + '.npz'))]
 
         cleaned_output_files = [cleaned_output_files[i] for i in not_done_idx]
         list_of_lists = [list_of_lists[i] for i in not_done_idx]
@@ -198,13 +203,27 @@ def predict_cases(model, list_of_lists, output_filenames, folds, save_npz, num_t
         interpolation_order = segmentation_export_kwargs['interpolation_order']
         interpolation_order_z = segmentation_export_kwargs['interpolation_order_z']
 
-    print("starting preprocessing generator")
-    preprocessing = preprocess_multithreaded(trainer, list_of_lists, cleaned_output_files, num_threads_preprocessing,
-                                             segs_from_prev_stage)
+    if segs_from_prev_stage is None:
+        segs_from_prev_stage = [None] * len(list_of_lists)
+
+    classes = list(range(1, trainer.num_classes))
+    assert isinstance(trainer, nnUNetTrainer)
+    q = Queue(1)
+    # preprocess_save_to_queue(trainer.preprocess_patient, q, list_of_lists,
+    #                          output_files, segs_from_prev_stage, classes,
+    #                          trainer.plans['transpose_forward'])
+
+    # print("starting preprocessing generator")
+    # preprocessing = preprocess_multithreaded(trainer, list_of_lists, cleaned_output_files, num_threads_preprocessing,
+    #                                          segs_from_prev_stage)
     print("starting prediction...")
     all_output_files = []
-    for preprocessed in preprocessing:
-        output_filename, (d, dct) = preprocessed
+    for i, list_of_list in enumerate(list_of_lists):
+
+        output_filename, (d, dct) = preprocess_save_to_queue(trainer.preprocess_patient, q,
+                                                             [list_of_list, ], [cleaned_output_files[i], ],
+                                                             [segs_from_prev_stage[i], ], classes,
+                                                             trainer.plans['transpose_forward'])
         all_output_files.append(all_output_files)
         if isinstance(d, str):
             data = np.load(d)
@@ -370,7 +389,8 @@ def predict_cases_fast(model, list_of_lists, output_filenames, folds, num_thread
             trainer.load_checkpoint_ram(p, False)
 
             res = trainer.predict_preprocessed_data_return_seg_and_softmax(d, do_mirroring=do_tta,
-                                                                           mirror_axes=trainer.data_aug_params['mirror_axes'],
+                                                                           mirror_axes=trainer.data_aug_params[
+                                                                               'mirror_axes'],
                                                                            use_sliding_window=True,
                                                                            step_size=step_size, use_gaussian=True,
                                                                            all_in_gpu=all_in_gpu,
@@ -502,7 +522,8 @@ def predict_cases_fastest(model, list_of_lists, output_filenames, folds, num_thr
         for i, p in enumerate(params):
             trainer.load_checkpoint_ram(p, False)
             res = trainer.predict_preprocessed_data_return_seg_and_softmax(d, do_mirroring=do_tta,
-                                                                           mirror_axes=trainer.data_aug_params['mirror_axes'],
+                                                                           mirror_axes=trainer.data_aug_params[
+                                                                               'mirror_axes'],
                                                                            use_sliding_window=True,
                                                                            step_size=step_size, use_gaussian=True,
                                                                            all_in_gpu=all_in_gpu,

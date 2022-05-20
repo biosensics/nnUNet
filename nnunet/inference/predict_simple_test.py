@@ -63,7 +63,7 @@ def main():
     parser.add_argument('-p', '--plans_identifier', help='do not touch this unless you know what you are doing',
                         default=default_plans_identifier, required=False)
 
-    parser.add_argument('-f', '--folds', nargs='+', default='None',
+    parser.add_argument('-f', '--folds', nargs='+', default=[0],
                         help="folds to use for prediction. Default is None which means that folds will be detected "
                              "automatically in the model output folder")
 
@@ -97,11 +97,11 @@ def main():
                              "GPU (via "
                              "CUDA_VISIBLE_DEVICES=X)")
 
-    parser.add_argument("--num_threads_preprocessing", required=False, default=12, type=int, help=
+    parser.add_argument("--num_threads_preprocessing", required=False, default=1, type=int, help=
     "Determines many background processes will be used for data preprocessing. Reduce this if you "
     "run into out of memory (RAM) problems. Default: 6")
 
-    parser.add_argument("--num_threads_nifti_save", required=False, default=4, type=int, help=
+    parser.add_argument("--num_threads_nifti_save", required=False, default=1, type=int, help=
     "Determines many background processes will be used for segmentation export. Reduce this if you "
     "run into out of memory (RAM) problems. Default: 2")
 
@@ -126,7 +126,7 @@ def main():
     parser.add_argument('-chk',
                         help='checkpoint name, default: model_final_checkpoint',
                         required=False,
-                        default='model_final_checkpoint')
+                        default='model_latest')
     parser.add_argument('--disable_mixed_precision', default=False, action='store_true', required=False,
                         help='Predictions are done with mixed precision by default. This improves speed and reduces '
                              'the required vram. If you want to disable mixed precision you can set this flag. Note '
